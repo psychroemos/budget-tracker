@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Budget Buddy</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0d9488">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+</head>
+<body>
+
+    <!-- ===== TOP HEADER ===== -->
+    <header class="app-header">
+        <div class="header-top">
+            <button class="header-icon" id="settingsBtn">&#9881;</button>
+            <span class="header-title">Budget Buddy</span>
+            <div style="width:32px"></div>
+        </div>
+        <div class="header-month">
+            <button class="month-arrow" id="monthPrev">&#9664;</button>
+            <button class="month-display" id="monthBtn">September 2026</button>
+            <button class="month-arrow" id="monthNext">&#9654;</button>
+        </div>
+    </header>
+
+    <!-- ===== MAIN CONTENT ===== -->
+    <main class="tab-content">
+
+        <!-- TAB 1: DASHBOARD -->
+        <section id="dashboardTab" class="tab-page active">
+
+            <!-- Remaining Balance Card -->
+            <div class="balance-card" id="balanceCard">
+                <div class="balance-label">Remaining Balance</div>
+                <div class="balance-amount" id="dashBalance">₱0.00</div>
+                <div class="balance-daily" id="dashDaily"></div>
+                <div class="balance-toggle" id="balanceToggle">Tap to hide</div>
+            </div>
+
+            <!-- Expense + Bills side by side -->
+            <div class="summary-row">
+                <div class="summary-mini card-expense">
+                    <div class="summary-mini-label">Expenses</div>
+                    <div class="summary-mini-amount" id="dashExpense">₱0</div>
+                </div>
+                <div class="summary-mini card-bills">
+                    <div class="summary-mini-label">Bills</div>
+                    <div class="summary-mini-amount" id="dashBills">₱0</div>
+                </div>
+            </div>
+
+            <!-- Daily Reminder -->
+            <div id="dailyReminder" class="reminder-card"></div>
+
+            <!-- Logging Streak -->
+            <div id="streakCard" class="streak-card hidden"></div>
+
+            <!-- Bills Warning -->
+            <div id="billsWarning" class="warning-card hidden"></div>
+
+            <!-- Category Warnings -->
+            <div id="categoryWarnings"></div>
+
+            <!-- Savings Goals -->
+            <div id="dashGoals" class="dash-goals"></div>
+
+            <!-- Spending Breakdown -->
+            <div class="section-label">Spending Breakdown</div>
+            <div id="dashChart" class="chart-container"></div>
+
+            <!-- Recent Transactions -->
+            <div class="section-label">Recent Transactions</div>
+            <div id="recentTransactions" class="transaction-list"></div>
+        </section>
+
+        <!-- TAB 2: TRANSACTIONS -->
+        <section id="transactionsTab" class="tab-page">
+            <div class="trans-filter-row">
+                <button class="filter-btn active" data-tfilter="all">All</button>
+                <button class="filter-btn" data-tfilter="expense">Expense</button>
+                <button class="filter-btn" data-tfilter="income">Income</button>
+                <button class="filter-btn" data-tfilter="save">Savings</button>
+            </div>
+            <div id="transactionList" class="transaction-list"></div>
+        </section>
+
+        <!-- TAB 3: BILLS -->
+        <section id="billsTab" class="tab-page">
+            <div class="bills-top">
+                <div class="section-label" style="margin:0">Monthly Bills</div>
+                <button class="btn-add" id="addBillBtn">+ Add</button>
+            </div>
+            <div id="billsSummary" class="bills-summary hidden"></div>
+
+            <div class="section-label" style="margin-top:16px">Recurring</div>
+            <div id="recurringBillList" class="bill-list"></div>
+
+            <div class="section-label" style="margin-top:16px">Payables / Utang</div>
+            <div id="payableBillList" class="bill-list"></div>
+        </section>
+
+        <!-- TAB 4: INSIGHTS -->
+        <section id="insightsTab" class="tab-page">
+            <div class="section-label">Spending by Category</div>
+            <div id="insightsPieChart" class="chart-container"></div>
+
+            <div id="monthComparison" class="comparison-card hidden"></div>
+
+            <div class="section-label">Needs vs Wants</div>
+            <div id="needsWantsChart" class="chart-container"></div>
+
+            <div class="section-label">Category Budgets</div>
+            <div id="categoryBudgetList" class="category-budget-list"></div>
+
+            <div class="section-label">Monthly Trend</div>
+            <div id="monthlyTrend" class="chart-container"></div>
+
+            <div class="section-label">Savings Goals</div>
+            <button class="btn-add" id="addGoalBtn" style="margin-bottom:12px">+ Add Goal</button>
+            <div id="goalsList" class="goals-list"></div>
+        </section>
+
+    </main>
+
+    <!-- ===== FLOATING ADD BUTTON ===== -->
+    <button class="fab" id="fabBtn">+</button>
+
+    <!-- ===== BOTTOM TAB BAR ===== -->
+    <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="dashboard">Dashboard</button>
+        <button class="tab-btn" data-tab="transactions">History</button>
+        <button class="tab-btn" data-tab="bills">Bills</button>
+        <button class="tab-btn" data-tab="insights">Insights</button>
+    </nav>
+
+        <!-- ===== QUICK-ADD PANEL ===== -->
+    <div id="quickAddPanel" class="slide-panel">
+        <div class="panel-header">
+            <span id="quickAddTitle">Add Expense</span>
+            <button class="panel-close" id="quickAddClose">&#10005;</button>
+        </div>
+        <div class="panel-body">
+            <div class="type-toggle-row">
+                <button class="type-toggle active" id="toggleExpense" data-type="expense">Expense</button>
+                <button class="type-toggle" id="toggleIncome" data-type="income">Income</button>
+                <button class="type-toggle" id="toggleSave" data-type="save">Save</button>
+            </div>
+
+            <label>Amount (₱)</label>
+            <input type="number" id="txAmount" class="form-input form-input-big" placeholder="0.00" inputmode="decimal">
+
+            <label id="txCategoryLabel">Category</label>
+            <select id="txCategory" class="form-input"></select>
+
+            <!-- Save: Goal selector (shown only for Save type) -->
+            <div id="txGoalRow" class="hidden">
+                <label>Goal</label>
+                <select id="txGoal" class="form-input"></select>
+            </div>
+
+            <!-- Needs vs Wants (shown only for Expense type) -->
+            <div id="txNeedWantRow">
+                <label>Type</label>
+                <div class="toggle-row">
+                    <button class="need-want-btn active" data-nw="need">Need</button>
+                    <button class="need-want-btn" data-nw="want">Want</button>
+                </div>
+            </div>
+
+            <label>Date</label>
+            <input type="date" id="txDate" class="form-input">
+
+            <label>Note (optional)</label>
+            <input type="text" id="txNote" class="form-input" placeholder="e.g. Lunch sa Jollibee">
+
+            <button class="btn-save" id="saveTxBtn">Save</button>
+            <button class="btn-delete hidden" id="deleteTxBtn">Delete this transaction</button>
+        </div>
+    </div>
+    <div id="quickAddOverlay" class="overlay"></div>
+
+    <!-- ===== BILL PANEL ===== -->
+    <div id="billPanel" class="slide-panel">
+        <div class="panel-header">
+            <span id="billPanelTitle">Add Bill</span>
+            <button class="panel-close" id="billPanelClose">&#10005;</button>
+        </div>
+        <div class="panel-body">
+            <label>Bill Name</label>
+            <input type="text" id="billName" class="form-input" placeholder="e.g. Kuryente">
+
+            <label>Amount (₱)</label>
+            <input type="number" id="billAmount" class="form-input" placeholder="0.00" inputmode="decimal">
+
+            <label>Due Day of Month</label>
+            <input type="number" id="billDueDay" class="form-input" placeholder="e.g. 15" min="1" max="31">
+
+            <label>Category</label>
+            <select id="billCategory" class="form-input"></select>
+
+            <label>Bill Type</label>
+            <div class="bill-type-row">
+                <button class="bill-type-btn active" data-btype="recurring">Recurring</button>
+                <button class="bill-type-btn" data-btype="onetime">One-time</button>
+                <button class="bill-type-btn" data-btype="payable">Payable</button>
+            </div>
+
+            <!-- Payable fields (shown only for Payable type) -->
+            <div id="payableFields" class="hidden">
+                <label>Total Amount Owed (₱)</label>
+                <input type="number" id="billTotalOwed" class="form-input" placeholder="e.g. 25000" inputmode="decimal">
+                <label>Total Paid So Far (₱)</label>
+                <input type="number" id="billTotalPaid" class="form-input" placeholder="e.g. 10000" inputmode="decimal">
+            </div>
+
+            <label>Notes (optional)</label>
+            <input type="text" id="billNotes" class="form-input" placeholder="Optional notes...">
+
+            <button class="btn-save" id="saveBillBtn">Save</button>
+            <button class="btn-delete hidden" id="deleteBillBtn">Delete this bill</button>
+        </div>
+    </div>
+    <div id="billPanelOverlay" class="overlay"></div>
+
+    <!-- ===== GOAL PANEL ===== -->
+    <div id="goalPanel" class="slide-panel">
+        <div class="panel-header">
+            <span id="goalPanelTitle">Add Goal</span>
+            <button class="panel-close" id="goalPanelClose">&#10005;</button>
+        </div>
+        <div class="panel-body">
+            <label>Goal Name</label>
+            <input type="text" id="goalName" class="form-input" placeholder="e.g. Emergency Fund">
+
+            <label>Target Amount (₱)</label>
+            <input type="number" id="goalTarget" class="form-input" placeholder="e.g. 50000" inputmode="decimal">
+
+            <label>Monthly Allocation (₱)</label>
+            <input type="number" id="goalAllocation" class="form-input" placeholder="e.g. 3000" inputmode="decimal">
+
+            <label>Saved So Far (₱)</label>
+            <input type="number" id="goalSaved" class="form-input" placeholder="0" inputmode="decimal">
+
+            <label>Deadline (optional)</label>
+            <input type="month" id="goalDeadline" class="form-input">
+
+            <button class="btn-save" id="saveGoalBtn">Save</button>
+            <button class="btn-delete hidden" id="deleteGoalBtn">Delete this goal</button>
+        </div>
+    </div>
+    <div id="goalPanelOverlay" class="overlay"></div>
+
+    <!-- ===== SETTINGS MODAL ===== -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span>Settings</span>
+                <button class="panel-close" id="settingsCloseBtn">&#10005;</button>
+            </div>
+            <div class="modal-body">
+                <label>Monthly Budget (₱)</label>
+                <input type="number" id="budgetInput" class="form-input" placeholder="e.g. 25000" inputmode="decimal">
+
+                <label>Payday</label>
+                <div class="settings-type-item">
+                    <span style="font-size:0.85rem;color:#555;flex:1;">Day of month</span>
+                    <input type="number" id="paydayInput" min="1" max="31" placeholder="e.g. 10" style="width:80px;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:0.85rem;">
+                </div>
+
+                <div class="section-divider"></div>
+
+                <label>Expense Categories</label>
+                <div id="categoryList" class="settings-type-list"></div>
+                <button class="btn-text" id="addCategoryBtn" style="margin-top:8px;width:100%">+ Add category</button>
+
+                <label>Income Categories</label>
+                <div id="incomeCategoryList" class="settings-type-list"></div>
+                <button class="btn-text" id="addIncomeCatBtn" style="margin-top:8px;width:100%">+ Add income category</button>
+
+                <div class="section-divider"></div>
+
+                <label>Data</label>
+                <div class="export-row">
+                    <button class="btn-export" id="exportJsonBtn">Backup Data (JSON)</button>
+                    <button class="btn-export" id="importJsonBtn">Restore Data (JSON)</button>
+                </div>
+                <input type="file" id="importFileInput" accept=".json" class="hidden">
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== CONFIRMATION DIALOG ===== -->
+    <div id="confirmDialog" class="modal hidden">
+        <div class="modal-content modal-small">
+            <p id="confirmMessage">Are you sure?</p>
+            <div class="confirm-actions">
+                <button class="btn-cancel" id="confirmNoBtn">Cancel</button>
+                <button class="btn-danger" id="confirmYesBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./service-worker.js');
+        }
+    </script>
+</body>
+</html>
