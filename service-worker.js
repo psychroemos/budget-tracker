@@ -1,4 +1,4 @@
-var CACHE_NAME = 'budget-buddy-v2';
+var CACHE_NAME = 'budget-buddy-v3';
 var urlsToCache = [
     './',
     './index.html',

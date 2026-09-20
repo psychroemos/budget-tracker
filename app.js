@@ -132,6 +132,16 @@ function generateId() {
     return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 }
 
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function formatPeso(amount) {
     var num = parseFloat(amount) || 0;
     return '\u20B1' + num.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -200,6 +210,14 @@ function getMonthBills(monthStr) {
 function getMonthBillsTotal(monthStr) {
     var total = 0;
     getMonthBills(monthStr).forEach(function(b) { total += parseFloat(b.amount) || 0; });
+    return total;
+}
+
+function getMonthUnpaidBillsTotal(monthStr) {
+    var total = 0;
+    getMonthBills(monthStr).forEach(function(b) {
+        if (!isBillPaid(b, monthStr)) total += parseFloat(b.amount) || 0;
+    });
     return total;
 }
 
@@ -446,7 +464,7 @@ function populateCategoryDropdown(type) {
     var select = document.getElementById('txCategory');
     var cats = type === 'expense' ? appData.expenseCategories : appData.incomeCategories;
     select.innerHTML = cats.map(function(c) {
-        return '<option value="' + c.id + '">' + c.name + '</option>';
+        return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
     }).join('');
 }
 
@@ -457,7 +475,7 @@ function populateGoalDropdown() {
         return;
     }
     select.innerHTML = appData.goals.map(function(g) {
-        return '<option value="' + g.id + '">' + g.name + '</option>';
+        return '<option value="' + g.id + '">' + escapeHtml(g.name) + '</option>';
     }).join('');
 }
 
@@ -550,17 +568,17 @@ function deleteTransaction() {
 function renderDashboard() {
     var budget = parseFloat(appData.monthlyBudget) || 0;
     var expenses = getMonthExpenses(currentMonth);
-    var billsTotal = getMonthBillsTotal(currentMonth);
     var income = getMonthIncome(currentMonth);
     var savingsDeposits = getMonthSavings(currentMonth);
-    var remaining = budget + income - expenses - billsTotal - savingsDeposits;
+    var unpaidBills = getMonthUnpaidBillsTotal(currentMonth);
+    var remaining = budget + income - expenses - unpaidBills - savingsDeposits;
 
     // Balance card
     renderBalanceCard(remaining);
 
     // Summary row
     document.getElementById('dashExpense').textContent = formatPeso(expenses);
-    document.getElementById('dashBills').textContent = formatPeso(billsTotal);
+    document.getElementById('dashBills').textContent = formatPeso(unpaidBills);
 
     // Sections
     renderDailyReminder();
@@ -671,8 +689,8 @@ function renderCategoryWarnings() {
         var pct = (spent / cat.limit) * 100;
         if (pct >= 80) {
             var msg = pct >= 100
-                ? 'Over budget! ' + cat.name + ': ' + formatPeso(spent) + ' / ' + formatPeso(cat.limit)
-                : 'Warning: ' + Math.round(pct) + '% na ng ' + cat.name + ' budget (' + formatPeso(spent) + ' / ' + formatPeso(cat.limit) + ')';
+                ? 'Over budget! ' + escapeHtml(cat.name) + ': ' + formatPeso(spent) + ' / ' + formatPeso(cat.limit)
+                : 'Warning: ' + Math.round(pct) + '% na ng ' + escapeHtml(cat.name) + ' budget (' + formatPeso(spent) + ' / ' + formatPeso(cat.limit) + ')';
             html += '<div class="cat-warning">' + msg + '</div>';
         }
     });
@@ -693,7 +711,7 @@ function renderDashGoals() {
 
         html += '<div class="dash-goal-card">' +
             '<div class="dash-goal-header">' +
-                '<span class="dash-goal-name">' + g.name + '</span>' +
+                '<span class="dash-goal-name">' + escapeHtml(g.name) + '</span>' +
                 '<span class="dash-goal-pct">' + pct + '%</span>' +
             '</div>' +
             '<div class="dash-goal-bar"><div class="dash-goal-fill" style="width:' + pct + '%"></div></div>' +
@@ -818,7 +836,15 @@ function renderTransactions() {
 
     var html = '';
     Object.keys(grouped).sort(function(a, b) { return b.localeCompare(a); }).forEach(function(date) {
-        html += '<div class="section-label" style="margin-top:14px">' + formatDate(date) + '</div>';
+        var dayExpense = 0;
+        grouped[date].forEach(function(tx) {
+            if (tx.type === 'expense') dayExpense += parseFloat(tx.amount) || 0;
+        });
+        var totalLabel = dayExpense > 0
+            ? '<span style="text-transform:none;letter-spacing:0;color:#ef4444;font-weight:700;">-' + formatPeso(dayExpense) + '</span>'
+            : '';
+        html += '<div class="section-label" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;">' +
+            '<span>' + formatDate(date) + '</span>' + totalLabel + '</div>';
         grouped[date].forEach(function(tx) { html += buildTxCard(tx); });
     });
 
@@ -841,8 +867,8 @@ function buildTxCard(tx) {
 
     return '<div class="tx-card" onclick="openQuickAdd(\'' + tx.id + '\')">' +
         '<div class="tx-left">' +
-            '<span class="tx-category">' + catName + '</span>' +
-            '<span class="tx-note">' + note + '</span>' +
+            '<span class="tx-category">' + escapeHtml(catName) + '</span>' +
+            '<span class="tx-note">' + escapeHtml(note) + '</span>' +
             '<span class="tx-date">' + shortDate(tx.date) + '</span>' +
         '</div>' +
         '<div class="tx-right">' +
@@ -928,10 +954,10 @@ function buildBillCard(b) {
     return '<div class="bill-card ' + paidClass + '" onclick="openBillPanel(\'' + b.id + '\')">' +
         '<div class="bill-left">' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-                '<span class="bill-name">' + b.name + '</span>' +
+                '<span class="bill-name">' + escapeHtml(b.name) + '</span>' +
                 '<span class="bill-badge ' + badgeClass + '">' + badgeLabel + '</span>' +
             '</div>' +
-            '<span class="bill-meta">Due: Day ' + (b.dueDay || '\u2014') + (b.notes ? ' \u00b7 ' + b.notes : '') + '</span>' +
+            '<span class="bill-meta">Due: Day ' + (b.dueDay || '\u2014') + (b.notes ? ' \u00b7 ' + escapeHtml(b.notes) : '') + '</span>' +
         '</div>' +
         '<div class="bill-right">' +
             '<span class="bill-amount">' + formatPeso(b.amount) + '</span>' +
@@ -951,10 +977,10 @@ function buildPayableCard(b) {
     return '<div class="bill-card ' + paidClass + '">' +
         '<div class="bill-left" onclick="openBillPanel(\'' + b.id + '\')">' +
             '<div style="display:flex;align-items:center;gap:8px">' +
-                '<span class="bill-name">' + b.name + '</span>' +
+                '<span class="bill-name">' + escapeHtml(b.name) + '</span>' +
                 '<span class="bill-badge payable">' + (isComplete ? 'Paid in full!' : 'Payable') + '</span>' +
             '</div>' +
-            '<span class="bill-meta">Due: Day ' + (b.dueDay || '\u2014') + (b.notes ? ' \u00b7 ' + b.notes : '') + '</span>' +
+            '<span class="bill-meta">Due: Day ' + (b.dueDay || '\u2014') + (b.notes ? ' \u00b7 ' + escapeHtml(b.notes) : '') + '</span>' +
             '<div class="payable-progress">' +
                 '<div class="payable-bar"><div class="payable-fill" style="width:' + pct + '%"></div></div>' +
                 '<div class="payable-text">' +
@@ -978,12 +1004,15 @@ function handleBillCheck(billId) {
 
     if (!wasPaid) {
         // Just marked as paid — add expense transaction
+        var payDate = (currentMonth === getCurrentMonth())
+            ? getToday()
+            : currentMonth + '-01';
         appData.transactions.push({
             id: generateId(),
             type: 'expense',
             amount: parseFloat(bill.amount) || 0,
             categoryId: bill.categoryId || appData.expenseCategories[0].id,
-            date: getToday(),
+            date: payDate,
             note: bill.name + ' (Bill)',
             needWant: 'need',
             billId: billId
@@ -1008,7 +1037,7 @@ function openBillPanel(billId) {
     var catSelect = document.getElementById('billCategory');
 
     catSelect.innerHTML = appData.expenseCategories.map(function(c) {
-        return '<option value="' + c.id + '">' + c.name + '</option>';
+        return '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>';
     }).join('');
 
     if (billId) {
@@ -1119,6 +1148,9 @@ function deleteBill() {
     var bill = appData.bills.find(function(b) { return b.id === editingBillId; });
     showConfirm('Delete "' + bill.name + '"?', function() {
         appData.bills = appData.bills.filter(function(b) { return b.id !== editingBillId; });
+        appData.transactions = appData.transactions.filter(function(tx) {
+            return tx.billId !== editingBillId;
+        });
         saveData();
         closeBillPanel();
         renderBills();
@@ -1228,7 +1260,7 @@ function renderCategoryBudgets() {
 
         return '<div class="cat-budget-card">' +
             '<div class="cat-budget-header">' +
-                '<span class="cat-budget-name">' + cat.name + '</span>' +
+                '<span class="cat-budget-name">' + escapeHtml(cat.name) + '</span>' +
                 '<span class="cat-budget-amounts">' + formatPeso(spent) + ' / ' + formatPeso(cat.limit) + '</span>' +
             '</div>' +
             '<div class="cat-budget-bar"><div class="cat-budget-fill ' + fillClass + '" style="width:' + pct + '%"></div></div></div>';
@@ -1288,7 +1320,7 @@ function renderGoalsList() {
 
         return '<div class="goal-card" onclick="openGoalPanel(\'' + g.id + '\')">' +
             '<div class="goal-header">' +
-                '<span class="goal-name">' + g.name + '</span>' +
+                '<span class="goal-name">' + escapeHtml(g.name) + '</span>' +
                 '<span class="goal-pct">' + pct + '%</span>' +
             '</div>' +
             '<div class="goal-bar"><div class="goal-fill" style="width:' + pct + '%"></div></div>' +
@@ -1415,7 +1447,7 @@ function renderSettingsCategories() {
     var container = document.getElementById('categoryList');
     container.innerHTML = appData.expenseCategories.map(function(c) {
         return '<div class="settings-type-item">' +
-            '<input type="text" value="' + c.name + '" onchange="renameCat(' + c.id + ', this.value)">' +
+            '<input type="text" value="' + escapeHtml(c.name) + '" onchange="renameCat(' + c.id + ', this.value)">' +
             '<input type="number" placeholder="Limit" value="' + (c.limit || '') + '" onchange="setCatLimit(' + c.id + ', this.value)">' +
             '<button class="settings-type-delete" onclick="deleteCat(' + c.id + ')">&#10005;</button>' +
         '</div>';
@@ -1456,7 +1488,7 @@ function renderSettingsIncomeCategories() {
     var container = document.getElementById('incomeCategoryList');
     container.innerHTML = appData.incomeCategories.map(function(c) {
         return '<div class="settings-type-item">' +
-            '<input type="text" value="' + c.name + '" onchange="renameIncomeCat(' + c.id + ', this.value)">' +
+            '<input type="text" value="' + escapeHtml(c.name) + '" onchange="renameIncomeCat(' + c.id + ', this.value)">' +
             '<button class="settings-type-delete" onclick="deleteIncomeCat(' + c.id + ')">&#10005;</button>' +
         '</div>';
     }).join('');
